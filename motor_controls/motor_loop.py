@@ -7,10 +7,15 @@ from MotorModule import MotorModule
 
 motor_module = MotorModule()
 
+context = zmq.Context()
+socket = context.socket(zmq.PULL)
+socket.bind("tcp://*:5555")
+socket.setsockopt(zmq.RCVTIMEO, 0)
+
 while True:
     # handle incoming motor commands (non-blocking)
     try:
-        command = zmq.recv()
+        command = socket.recv_string()
         motor_module.update(command)
     except zmq.Again:
         pass
