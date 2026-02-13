@@ -9,7 +9,7 @@ motor_module = MotorModule()
 
 context = zmq.Context()
 socket = context.socket(zmq.PULL)
-socket.bind("tcp://*:5555")
+socket.bind("tcp://*:5556")
 socket.setsockopt(zmq.RCVTIMEO, 0)
 
 while True:

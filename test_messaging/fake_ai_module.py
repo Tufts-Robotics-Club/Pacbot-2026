@@ -2,7 +2,7 @@
 from PiMessager import PiMessager
 import sys
 
-address = sys.argv[1] if len(sys.argv) > 1 else "tcp://localhost:5555"
+address = sys.argv[1] if len(sys.argv) > 1 else "tcp://localhost:5556"
 messager = PiMessager(address=address)
 
 
@@ -11,4 +11,4 @@ while True:
     if command in ['W', 'A', 'S', 'D']:
         messager.send_message(command)
     else:
-        print("Invalid command. Please enter W, A, S, or D.")
+        messager.send_message("STOP")
