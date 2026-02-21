@@ -12,13 +12,17 @@ socket = context.socket(zmq.PULL)
 socket.bind("tcp://*:5556")
 socket.setsockopt(zmq.RCVTIMEO, 0)
 
-while True:
-    # handle incoming motor commands (non-blocking)
-    try:
-        command = socket.recv_string()
-        motor_module.update(command)
-    except zmq.Again:
-        pass
-
-    sleep(0.01)
-    
+try:
+    while True:
+        # handle incoming motor commands (non-blocking)
+        try:
+            command = socket.recv_string()
+            motor_module.update(command)
+        except zmq.Again:
+            pass
+        sleep(0.01)
+except KeyboardInterrupt:
+    print("Shutting down motor loop...")
+finally:
+    motor_module.close()
+    socket.close()

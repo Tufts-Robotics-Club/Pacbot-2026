@@ -11,10 +11,10 @@ WEST_PINS = (5, 6)
 class MotorModule:
     def __init__(self):
         # Initialize motor module
-        self.north_motor = Motor.PhaseEnableMotor(*NORTH_PINS)
-        self.south_motor = Motor.PhaseEnableMotor(*SOUTH_PINS)
-        self.east_motor = Motor.PhaseEnableMotor(*EAST_PINS)
-        self.west_motor = Motor.PhaseEnableMotor(*WEST_PINS)
+        self.north_motor = Motor.get_motor_class(*NORTH_PINS)
+        self.south_motor = Motor.get_motor_class(*SOUTH_PINS)
+        self.east_motor = Motor.get_motor_class(*EAST_PINS)
+        self.west_motor = Motor.get_motor_class(*WEST_PINS)
         
     def update(self, command):
         # Update motor state based on command
@@ -38,3 +38,9 @@ class MotorModule:
             self.west_motor.stop()
             
         pass
+
+    def close(self):
+        # Clean up motor module resources
+        for motor in [self.north_motor, self.south_motor, self.east_motor, self.west_motor]:
+            motor.stop()
+            motor.close()

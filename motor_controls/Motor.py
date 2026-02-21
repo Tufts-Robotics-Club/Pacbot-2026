@@ -3,7 +3,7 @@ import json
 
 # Goal is to have same interface as GPIO PhaseEnableMotor
 # May change if using different library in real motor module
-class PhaseEnableMotor:
+class PhaseEnableMotorSimulator:
     def __init__(self, pin1, pin2):
         self.pin1 = pin1
         self.pin2 = pin2  # Pins are just an identifier here
@@ -33,3 +33,16 @@ class PhaseEnableMotor:
     def close(self):
         self.socket.close()
         self.context.term()
+
+class PhaseEnableMotor():
+    def __init__(self, pin1, pin2):
+        self.pin1 = pin1
+        self.pin2 = pin2  # Pins are just an identifier here
+        
+    def forward(self, speed):
+        pass
+
+def get_motor_class(pin1, pin2):
+    # In real implementation, we would check for hardware availability
+    # For now, we return the simulator class
+    return PhaseEnableMotorSimulator(pin1, pin2)
