@@ -1,2 +1,6 @@
+future==1.0.0
+iso8601==2.1.0
+PyYAML==6.0.3
 pyzmq==27.1.0
+serial==0.0.97
 zmq==0.0.0
