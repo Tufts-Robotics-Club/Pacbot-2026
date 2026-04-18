@@ -9,12 +9,12 @@ EAST_ID = 2
 WEST_ID = 3
 
 class MotorModule:
-    def __init__(self, use_uart=False):
+    def __init__(self, use_physical=False):
         # Initialize motor module
-        self.north_motor = Motor.get_motor_class(NORTH_ID, use_uart=use_uart)
-        self.south_motor = Motor.get_motor_class(SOUTH_ID, use_uart=use_uart)
-        self.east_motor = Motor.get_motor_class(EAST_ID, use_uart=use_uart)
-        self.west_motor = Motor.get_motor_class(WEST_ID, use_uart=use_uart)
+        self.north_motor = Motor.get_motor_class(NORTH_ID, use_physical=use_physical)
+        self.south_motor = Motor.get_motor_class(SOUTH_ID, use_physical=use_physical)
+        self.east_motor = Motor.get_motor_class(EAST_ID, use_physical=use_physical)
+        self.west_motor = Motor.get_motor_class(WEST_ID, use_physical=use_physical)
 
     def update(self, command):
         # Update motor state based on command
@@ -36,11 +36,13 @@ class MotorModule:
             self.south_motor.stop()
             self.east_motor.stop()
             self.west_motor.stop()
-            
+
         pass
 
     def close(self):
-        # Clean up motor module resources
-        for motor in [self.north_motor, self.south_motor, self.east_motor, self.west_motor]:
+        # Stop all motors first, then close (physical motors share serial state).
+        motors = [self.north_motor, self.south_motor, self.east_motor, self.west_motor]
+        for motor in motors:
             motor.stop()
+        for motor in motors:
             motor.close()

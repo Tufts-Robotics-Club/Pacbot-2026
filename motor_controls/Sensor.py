@@ -1,6 +1,5 @@
 import zmq
 import json
-import serial
 
 ID_TO_WHEEL = {0: "north", 1: "south", 2: "east", 3: "west"}
 
@@ -47,21 +46,6 @@ class ToFSimulator(_SimSensorBase):
         return self._latest[self._wheel]
 
 
-class EncoderSimulator(_SimSensorBase):
-    def __init__(self, sensor_id, host="localhost", port=5557):
-        super().__init__("sensors.encoders", host, port)
-        if sensor_id not in ID_TO_WHEEL:
-            raise ValueError(f"Invalid encoder id {sensor_id}; expected 0-3")
-        self.sensor_id = sensor_id
-        self._wheel = ID_TO_WHEEL[sensor_id]
-
-    def read(self):
-        self._drain()
-        if self._latest is None:
-            return None
-        return self._latest[self._wheel]
-
-
 class IMUSimulator(_SimSensorBase):
     def __init__(self, host="localhost", port=5557):
         super().__init__("sensors.imu", host, port)
@@ -71,64 +55,99 @@ class IMUSimulator(_SimSensorBase):
         return self._latest
 
 
-# --- UART (physical robot) placeholder implementations ---
+# --- Physical (I2C) implementations ---
+# ToFs: VL53L4CD behind a TCA9548A mux (channels 0-3 = N/S/E/W).
+# IMU: BNO08X over I2C. Assumes sensor frame matches robot body frame
+# (+X = right, +Y = forward, +Z = up) so linear_accel (x,y) = (ax,ay)
+# and gyro_z = omega (+ CCW).
 
-class ToFUart:
-    def __init__(self, sensor_id):
+_i2c = None
+_tca = None
+
+
+def _get_i2c():
+    global _i2c
+    if _i2c is None:
+        import board
+        _i2c = board.I2C()
+    return _i2c
+
+
+def _get_tca():
+    global _tca
+    if _tca is None:
+        import adafruit_tca9548a
+        _tca = adafruit_tca9548a.TCA9548A(_get_i2c())
+    return _tca
+
+
+class ToFPhysical:
+    """VL53L4CD on TCA9548A channel = sensor_id. Returns distance in meters."""
+
+    def __init__(self, sensor_id, timing_budget=200, inter_measurement=0):
+        if sensor_id not in ID_TO_WHEEL:
+            raise ValueError(f"Invalid ToF sensor id {sensor_id}; expected 0-3")
+        import adafruit_vl53l4cd
         self.sensor_id = sensor_id
-        self.ser = serial.Serial('/dev/ttyS0', baudrate=9600, timeout=1)
+        self.sensor = adafruit_vl53l4cd.VL53L4CD(_get_tca()[sensor_id])
+        self.sensor.timing_budget = timing_budget
+        self.sensor.inter_measurement = inter_measurement
+        self.sensor.start_ranging()
 
     def read(self):
-        # Placeholder: request distance reading over UART
-        self.ser.write(f"TOF {self.sensor_id}\n".encode())
-        return None
+        if not self.sensor.data_ready:
+            return None
+        distance_cm = self.sensor.distance
+        self.sensor.clear_interrupt()
+        if distance_cm is None:
+            return None
+        return distance_cm / 100.0  # cm -> m to match simulator
 
     def close(self):
-        self.ser.close()
+        try:
+            self.sensor.stop_ranging()
+        except Exception:
+            pass
 
 
-class EncoderUart:
-    def __init__(self, sensor_id):
-        self.sensor_id = sensor_id
-        self.ser = serial.Serial('/dev/ttyS0', baudrate=9600, timeout=1)
+class IMUPhysical:
+    """BNO08X IMU over I2C. Returns {'ax', 'ay', 'omega'} matching sim schema."""
 
-    def read(self):
-        # Placeholder: request encoder tick count over UART
-        self.ser.write(f"ENC {self.sensor_id}\n".encode())
-        return None
-
-    def close(self):
-        self.ser.close()
-
-
-class IMUUart:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyS0', baudrate=9600, timeout=1)
+        import time
+        from adafruit_bno08x import (
+            BNO_REPORT_LINEAR_ACCELERATION,
+            BNO_REPORT_GYROSCOPE,
+        )
+        from adafruit_bno08x.i2c import BNO08X_I2C
+        self.bno = BNO08X_I2C(_get_i2c())
+        time.sleep(1)
+        self.bno.enable_feature(BNO_REPORT_LINEAR_ACCELERATION)
+        self.bno.enable_feature(BNO_REPORT_GYROSCOPE)
 
     def read(self):
-        # Placeholder: request IMU reading over UART
-        self.ser.write(b"IMU\n")
-        return None
+        try:
+            ax, ay, _ = self.bno.linear_acceleration
+            _, _, omega = self.bno.gyro
+            return {"ax": ax, "ay": ay, "omega": omega}
+        except RuntimeError as e:
+            if "Unprocessable Batch bytes" in str(e):
+                return None
+            raise
 
     def close(self):
-        self.ser.close()
+        pass
 
 
 # --- Factory functions ---
 
-def get_tof_class(sensor_id, use_uart=False):
-    if use_uart:
-        return ToFUart(sensor_id)
+def get_tof_class(sensor_id, use_physical=False):
+    if use_physical:
+        return ToFPhysical(sensor_id)
     return ToFSimulator(sensor_id)
 
 
-def get_encoder_class(sensor_id, use_uart=False):
-    if use_uart:
-        return EncoderUart(sensor_id)
-    return EncoderSimulator(sensor_id)
-
-
-def get_imu_class(use_uart=False):
-    if use_uart:
-        return IMUUart()
+def get_imu_class(use_physical=False):
+    if use_physical:
+        return IMUPhysical()
     return IMUSimulator()

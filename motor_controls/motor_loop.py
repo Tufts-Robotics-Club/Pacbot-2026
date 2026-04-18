@@ -9,14 +9,14 @@ from MotorModule import MotorModule
 from SensorModule import SensorModule
 
 parser = argparse.ArgumentParser(description="Pacbot motor/sensor control loop")
-parser.add_argument("--uart", action="store_true",
-                    help="Use UART (physical robot) instead of simulator")
+parser.add_argument("--physical", action="store_true",
+                    help="Use physical robot hardware (UART motors, I2C sensors) instead of simulator")
 args = parser.parse_args()
 
-print(f"Running in {'UART' if args.uart else 'simulator'} mode")
+print(f"Running in {'physical' if args.physical else 'simulator'} mode")
 
-motor_module = MotorModule(use_uart=args.uart)
-sensor_module = SensorModule(use_uart=args.uart)
+motor_module = MotorModule(use_physical=args.physical)
+sensor_module = SensorModule(use_physical=args.physical)
 
 context = zmq.Context()
 socket = context.socket(zmq.PULL)
@@ -41,7 +41,6 @@ try:
             last_sensor_poll = now
             readings = sensor_module.read_all()
             print(f"[sensors] ToF: {readings['tof']}")
-            print(f"[sensors] Encoders: {readings['encoders']}")
             print(f"[sensors] IMU: {readings['imu']}")
 
         sleep(0.01)
