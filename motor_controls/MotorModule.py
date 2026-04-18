@@ -3,19 +3,19 @@
 
 import Motor
 
-NORTH_PINS = (17, 27)
-SOUTH_PINS = (22, 23)
-EAST_PINS = (24, 25)
-WEST_PINS = (5, 6)
+NORTH_ID = 0
+SOUTH_ID = 1
+EAST_ID = 2
+WEST_ID = 3
 
 class MotorModule:
     def __init__(self):
         # Initialize motor module
-        self.north_motor = Motor.get_motor_class(*NORTH_PINS)
-        self.south_motor = Motor.get_motor_class(*SOUTH_PINS)
-        self.east_motor = Motor.get_motor_class(*EAST_PINS)
-        self.west_motor = Motor.get_motor_class(*WEST_PINS)
-        
+        self.north_motor = Motor.get_motor_class(NORTH_ID)
+        self.south_motor = Motor.get_motor_class(SOUTH_ID)
+        self.east_motor = Motor.get_motor_class(EAST_ID)
+        self.west_motor = Motor.get_motor_class(WEST_ID)
+
     def update(self, command):
         # Update motor state based on command
         # LATER: Implement motor control logic
