@@ -2,13 +2,21 @@
 # Receives commands, passes them to the motor controller.
 # Also polls sensor data once per second and prints it.
 
+import argparse
 from time import sleep, monotonic
 import zmq
 from MotorModule import MotorModule
 from SensorModule import SensorModule
 
-motor_module = MotorModule()
-sensor_module = SensorModule()
+parser = argparse.ArgumentParser(description="Pacbot motor/sensor control loop")
+parser.add_argument("--uart", action="store_true",
+                    help="Use UART (physical robot) instead of simulator")
+args = parser.parse_args()
+
+print(f"Running in {'UART' if args.uart else 'simulator'} mode")
+
+motor_module = MotorModule(use_uart=args.uart)
+sensor_module = SensorModule(use_uart=args.uart)
 
 context = zmq.Context()
 socket = context.socket(zmq.PULL)

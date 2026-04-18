@@ -9,12 +9,12 @@ EAST_ID = 2
 WEST_ID = 3
 
 class MotorModule:
-    def __init__(self):
+    def __init__(self, use_uart=False):
         # Initialize motor module
-        self.north_motor = Motor.get_motor_class(NORTH_ID)
-        self.south_motor = Motor.get_motor_class(SOUTH_ID)
-        self.east_motor = Motor.get_motor_class(EAST_ID)
-        self.west_motor = Motor.get_motor_class(WEST_ID)
+        self.north_motor = Motor.get_motor_class(NORTH_ID, use_uart=use_uart)
+        self.south_motor = Motor.get_motor_class(SOUTH_ID, use_uart=use_uart)
+        self.east_motor = Motor.get_motor_class(EAST_ID, use_uart=use_uart)
+        self.west_motor = Motor.get_motor_class(WEST_ID, use_uart=use_uart)
 
     def update(self, command):
         # Update motor state based on command
