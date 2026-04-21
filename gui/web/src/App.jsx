@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const KEYS = ['W', 'A', 'S', 'D']
+const KEYS = ['W', 'A', 'S', 'D', 'Q', 'E']
 const BRIDGE_URL = 'http://localhost:8000/command'
 
 function sendCommand(cmd) {
@@ -48,10 +48,12 @@ export default function App() {
   return (
     <div className="wrap">
       <h1>Pacbot Drive</h1>
-      <p className="hint">Press WASD to drive. Release to stop.</p>
+      <p className="hint">WASD to drive, Q/E to rotate. Release to stop.</p>
       <div className="keys">
         <div className="row">
+          <Key label="Q" active={pressed.has('Q')} />
           <Key label="W" active={pressed.has('W')} />
+          <Key label="E" active={pressed.has('E')} />
         </div>
         <div className="row">
           <Key label="A" active={pressed.has('A')} />

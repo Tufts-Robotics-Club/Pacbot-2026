@@ -31,6 +31,18 @@ class MotorModule:
         elif command.upper() == "D":
             self.north_motor.forward(1.0)
             self.south_motor.backward(1.0)
+        elif command.upper() == "Q":
+            # rotate CCW: all 4 motors drive the chassis around its center
+            self.north_motor.forward(0.5)
+            self.east_motor.backward(0.5)
+            self.south_motor.backward(0.5)
+            self.west_motor.forward(0.5)
+        elif command.upper() == "E":
+            # rotate CW
+            self.north_motor.backward(0.5)
+            self.east_motor.forward(0.5)
+            self.south_motor.forward(0.5)
+            self.west_motor.backward(0.5)
         else:
             self.north_motor.stop()
             self.south_motor.stop()
