@@ -11,12 +11,15 @@ from SensorModule import SensorModule
 parser = argparse.ArgumentParser(description="Pacbot motor/sensor control loop")
 parser.add_argument("--physical", action="store_true",
                     help="Use physical robot hardware (UART motors, I2C sensors) instead of simulator")
+parser.add_argument("--sensors", action="store_true",
+                    help="Enable sensor polling (ToF + IMU) at 1 Hz")
 args = parser.parse_args()
 
-print(f"Running in {'physical' if args.physical else 'simulator'} mode")
+print(f"Running in {'physical' if args.physical else 'simulator'} mode"
+      f" (sensors {'ON' if args.sensors else 'OFF'})")
 
 motor_module = MotorModule(use_physical=args.physical)
-sensor_module = SensorModule(use_physical=args.physical)
+sensor_module = SensorModule(use_physical=args.physical) if args.sensors else None
 
 context = zmq.Context()
 socket = context.socket(zmq.PULL)
@@ -36,17 +39,19 @@ try:
             pass
 
         # poll sensors once per second
-        now = monotonic()
-        if now - last_sensor_poll >= SENSOR_POLL_INTERVAL:
-            last_sensor_poll = now
-            readings = sensor_module.read_all()
-            print(f"[sensors] ToF: {readings['tof']}")
-            print(f"[sensors] IMU: {readings['imu']}")
+        if sensor_module is not None:
+            now = monotonic()
+            if now - last_sensor_poll >= SENSOR_POLL_INTERVAL:
+                last_sensor_poll = now
+                readings = sensor_module.read_all()
+                print(f"[sensors] ToF: {readings['tof']}")
+                print(f"[sensors] IMU: {readings['imu']}")
 
         sleep(0.01)
 except KeyboardInterrupt:
     print("Shutting down motor loop...")
 finally:
     motor_module.close()
-    sensor_module.close()
+    if sensor_module is not None:
+        sensor_module.close()
     socket.close()
