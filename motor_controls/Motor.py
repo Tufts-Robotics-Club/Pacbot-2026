@@ -50,6 +50,16 @@ class MotorPhysical:
     3=west=left.
     """
 
+    # Per-motor calibration: some motors are faster than others for electrical
+    # reasons, so scale each motor's commanded speed by this factor before
+    # sending. Tune as needed.
+    SPEED_FACTORS = {
+        0: 0.8,  # north / front
+        1: 1.0,  # south / back
+        2: 1.0,  # east  / right
+        3: 1.0,  # west  / left
+    }
+
     _serial = None
     _speeds = {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0}
 
@@ -69,15 +79,15 @@ class MotorPhysical:
         self._get_serial()
 
     def _flush(self):
-        def scale(v):
+        def scale(motor_id):
+            v = MotorPhysical._speeds[motor_id] * MotorPhysical.SPEED_FACTORS[motor_id]
             return int(max(-32767, min(32767, v * 32767)))
-        speeds = MotorPhysical._speeds
         packet = struct.pack(
             '>hhhh',
-            scale(speeds[0]),  # front = north
-            scale(speeds[2]),  # right = east
-            scale(speeds[1]),  # back  = south
-            scale(speeds[3]),  # left  = west
+            scale(0),  # front = north
+            scale(2),  # right = east
+            scale(1),  # back  = south
+            scale(3),  # left  = west
         )
         ser = self._get_serial()
         if ser is not None:
