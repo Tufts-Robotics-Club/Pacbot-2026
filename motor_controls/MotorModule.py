@@ -20,17 +20,17 @@ class MotorModule:
         # Update motor state based on command
         # LATER: Implement motor control logic
         if command.upper() == "W":
-            self.west_motor.forward(0.6)
-            self.east_motor.backward(0.6)
+            self.west_motor.forward(1.0)
+            self.east_motor.backward(1.0)
         elif command.upper() == "S":
-            self.west_motor.backward(0.6)
-            self.east_motor.forward(0.6)
+            self.west_motor.backward(1.0)
+            self.east_motor.forward(1.0)
         elif command.upper() == "A":
-            self.north_motor.backward(0.6)
-            self.south_motor.forward(0.6)
+            self.north_motor.backward(1.0)
+            self.south_motor.forward(1.0)
         elif command.upper() == "D":
-            self.north_motor.forward(0.6)
-            self.south_motor.backward(0.6)
+            self.north_motor.forward(1.0)
+            self.south_motor.backward(1.0)
         else:
             self.north_motor.stop()
             self.south_motor.stop()
