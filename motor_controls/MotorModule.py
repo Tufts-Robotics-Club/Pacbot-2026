@@ -23,7 +23,7 @@ TRANSLATE_MODES = (TRANSLATE_W, TRANSLATE_A, TRANSLATE_S, TRANSLATE_D)
 
 # Heading-hold PID gains (untuned — start conservative, adjust on hardware).
 # Input: yaw error in radians. Output: per-wheel rotational-bias duty cycle.
-HEADING_KP = 150.0
+HEADING_KP = 1.0
 HEADING_KI = 0.0
 HEADING_KD = 0.1
 HEADING_OUT_CLAMP = 0.5
