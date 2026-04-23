@@ -14,12 +14,10 @@ WEST_ID = 3
 # Maze geometry — tune for the real maze.
 TILE_SIZE = 0.16              # meters the bot must travel to cross one tile
 WALL_SAFETY_DISTANCE = 0.04   # bail out of driving if front ToF drops below this
-CENTER_TOLERANCE = 0.01       # side-distance imbalance (m) we consider "centered"
 ANGLE_TOLERANCE = 0.05        # integrated heading error (rad) we consider "aligned"
 SETTLING_TIMEOUT = 1.5        # seconds to spend trying to fine-tune before giving up
 
 # Control gains — tune on hardware.
-KP_LATERAL = 4.0
 KP_HEADING = 2.0
 DRIVE_SPEED = 0.5             # nominal forward speed (unitless motor command)
 NOMINAL_SPEED_MPS = 0.25      # rough calibration: what DRIVE_SPEED maps to in m/s
@@ -27,15 +25,13 @@ BASELINE_WAIT = 0.5           # seconds to wait for front ToF before falling bac
 
 TILE_DIRECTIONS = {"north", "south", "east", "west"}
 
-# For each movement direction: (body_vx, body_vy, front_tof, pos_side, neg_side).
+# For each movement direction: (body_vx, body_vy, front_tof).
 # Body frame: +x east, +y north, +omega CCW (matches IMU convention).
-# pos_side / neg_side: when pos_side distance > neg_side distance we are too close
-# to neg_side, so the lateral correction pushes toward pos_side (positive sign).
 DIRECTION_INFO = {
-    "north": (0,  1, "north", "east", "west"),
-    "south": (0, -1, "south", "east", "west"),
-    "east":  (1,  0, "east",  "north", "south"),
-    "west":  (-1, 0, "west",  "north", "south"),
+    "north": (0,  1, "north"),
+    "south": (0, -1, "south"),
+    "east":  (1,  0, "east"),
+    "west":  (-1, 0, "west"),
 }
 
 
@@ -89,7 +85,7 @@ class MotorModule:
         if self._state == "DRIVING":
             self._tick_driving(tof, now)
         elif self._state == "SETTLING":
-            self._tick_settling(tof, now)
+            self._tick_settling(now)
 
     def _enter_driving(self, direction, tof, now):
         self._move = direction
@@ -104,7 +100,7 @@ class MotorModule:
         direction = self._move
         if direction is None:
             return
-        vx_dir, vy_dir, front_name, pos_side, neg_side = DIRECTION_INFO[direction]
+        vx_dir, vy_dir, front_name = DIRECTION_INFO[direction]
         front = tof.get(front_name)
 
         # If we never captured a baseline, keep trying briefly before committing to timed fallback.
@@ -133,53 +129,28 @@ class MotorModule:
             print(f"[tile] reached target, settling (heading_err={self._heading:.3f})")
             return
 
-        lateral = self._lateral_correction(tof, pos_side, neg_side, clamp=0.3)
         omega_cmd = max(-0.3, min(0.3, -KP_HEADING * self._heading))
-
-        if direction in ("north", "south"):
-            vy = vy_dir * DRIVE_SPEED
-            vx = lateral
-        else:
-            vx = vx_dir * DRIVE_SPEED
-            vy = lateral
-
+        vx = vx_dir * DRIVE_SPEED
+        vy = vy_dir * DRIVE_SPEED
         self._drive(vx, vy, omega_cmd)
 
-    def _tick_settling(self, tof, now):
-        direction = self._move
-        if direction is None:
+    def _tick_settling(self, now):
+        if self._move is None:
             self._state = "IDLE"
             return
-        _, _, _, pos_side, neg_side = DIRECTION_INFO[direction]
-        pos = tof.get(pos_side)
-        neg = tof.get(neg_side)
 
-        lateral = self._lateral_correction(tof, pos_side, neg_side, clamp=0.2)
         omega_cmd = max(-0.2, min(0.2, -KP_HEADING * self._heading))
-
-        lateral_ok = (pos is None or neg is None) or abs(pos - neg) < CENTER_TOLERANCE
         angle_ok = abs(self._heading) < ANGLE_TOLERANCE
         timed_out = (now - self._settle_start) > SETTLING_TIMEOUT
 
-        if (lateral_ok and angle_ok) or timed_out:
+        if angle_ok or timed_out:
             self._stop_motors()
             print(f"[tile] settled (timeout={timed_out}); returning to IDLE")
             self._state = "IDLE"
             self._move = None
             return
 
-        if direction in ("north", "south"):
-            self._drive(lateral, 0.0, omega_cmd)
-        else:
-            self._drive(0.0, lateral, omega_cmd)
-
-    def _lateral_correction(self, tof, pos_side, neg_side, clamp):
-        pos = tof.get(pos_side)
-        neg = tof.get(neg_side)
-        if pos is None or neg is None:
-            return 0.0
-        value = KP_LATERAL * (pos - neg)
-        return max(-clamp, min(clamp, value))
+        self._drive(0.0, 0.0, omega_cmd)
 
     def _reset_tile_state(self):
         self._queue.clear()
