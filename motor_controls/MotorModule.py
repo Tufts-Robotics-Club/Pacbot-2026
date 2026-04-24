@@ -16,6 +16,7 @@ TRANSLATE_W = "TRANSLATE_W"
 TRANSLATE_A = "TRANSLATE_A"
 TRANSLATE_S = "TRANSLATE_S"
 TRANSLATE_D = "TRANSLATE_D"
+DECELERATING = "DECELERATING"
 ROTATE_CCW = "ROTATE_CCW"
 ROTATE_CW = "ROTATE_CW"
 
@@ -30,6 +31,7 @@ HEADING_OUT_CLAMP = 0.5
 
 TRANSLATE_SPEED = 1.0
 ROTATE_OPEN_LOOP_SPEED = 0.5
+DECEL_DURATION = 0.15  # seconds to ramp translate speed to zero on stop
 
 
 class MotorModule:
@@ -46,6 +48,8 @@ class MotorModule:
             HEADING_KP, HEADING_KI, HEADING_KD,
             i_clamp=1.0, out_clamp=HEADING_OUT_CLAMP,
         )
+        self._decel_prev_mode = None
+        self._decel_remaining = 0.0
 
     def tick(self, command, sensor_readings, dt):
         """Run one control step. `command` may be None (no new input this tick)."""
@@ -60,7 +64,9 @@ class MotorModule:
         if self.mode == IDLE:
             self._drive_wheels(0, 0, 0, 0)
         elif self.mode in TRANSLATE_MODES:
-            self._run_translate(dt)
+            self._run_translate(dt, TRANSLATE_SPEED, self.mode)
+        elif self.mode == DECELERATING:
+            self._run_decel(dt)
         elif self.mode == ROTATE_CCW:
             s = ROTATE_OPEN_LOOP_SPEED
             self._drive_wheels(s, s, s, s)
@@ -81,15 +87,26 @@ class MotorModule:
 
         entering_translate = new_mode in TRANSLATE_MODES and new_mode != self.mode
         if entering_translate:
+            # New translate — snap heading target. Works whether we're coming from
+            # IDLE, a different translate direction, or mid-decel.
             self.heading_target = self.integrated_yaw
             self.heading_pid.reset()
+            self.mode = new_mode
+            return
+
+        # Translate -> stop: ramp down instead of cutting.
+        if new_mode == IDLE and self.mode in TRANSLATE_MODES:
+            self._decel_prev_mode = self.mode
+            self._decel_remaining = DECEL_DURATION
+            self.mode = DECELERATING
+            return
 
         if new_mode == IDLE and self.mode != IDLE:
             self.heading_pid.reset()
 
         self.mode = new_mode
 
-    def _run_translate(self, dt):
+    def _run_translate(self, dt, speed, direction_mode):
         # Wrap target to within pi of current yaw (shortest-path error).
         while self.heading_target - self.integrated_yaw > math.pi:
             self.heading_target -= 2 * math.pi
@@ -98,14 +115,14 @@ class MotorModule:
 
         correction = self.heading_pid.update(self.heading_target, self.integrated_yaw, dt)
 
-        v = TRANSLATE_SPEED
-        if self.mode == TRANSLATE_W:
+        v = speed
+        if direction_mode == TRANSLATE_W:
             n, s, e, w = 0.0, 0.0, -v, v
-        elif self.mode == TRANSLATE_S:
+        elif direction_mode == TRANSLATE_S:
             n, s, e, w = 0.0, 0.0, v, -v
-        elif self.mode == TRANSLATE_A:
+        elif direction_mode == TRANSLATE_A:
             n, s, e, w = -v, v, 0.0, 0.0
-        elif self.mode == TRANSLATE_D:
+        elif direction_mode == TRANSLATE_D:
             n, s, e, w = v, -v, 0.0, 0.0
         else:
             n = s = e = w = 0.0
@@ -117,6 +134,19 @@ class MotorModule:
         w += correction
 
         self._drive_wheels(n, s, e, w)
+
+    def _run_decel(self, dt):
+        self._decel_remaining -= dt
+        if self._decel_remaining <= 0 or self._decel_prev_mode is None:
+            self._decel_remaining = 0.0
+            self._decel_prev_mode = None
+            self.mode = IDLE
+            self.heading_pid.reset()
+            self._drive_wheels(0, 0, 0, 0)
+            return
+
+        scale = self._decel_remaining / DECEL_DURATION
+        self._run_translate(dt, TRANSLATE_SPEED * scale, self._decel_prev_mode)
 
     def _drive_wheels(self, n, s, e, w):
         self._apply(self.north_motor, n)
