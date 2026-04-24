@@ -38,6 +38,8 @@ try:
         except zmq.Again:
             pass
 
+        motor_module.tick()
+
         # poll sensors once per second
         if sensor_module is not None:
             now = monotonic()
