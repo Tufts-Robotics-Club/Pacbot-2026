@@ -1,6 +1,5 @@
 # This file contains the main control loop for motor operations.
-# Receives commands, passes them to the motor controller.
-# Also polls sensor data once per second and prints it.
+# Receives commands, reads sensors every tick, and runs the motor controller.
 
 import argparse
 from time import sleep, monotonic
@@ -25,26 +24,29 @@ socket = context.socket(zmq.PULL)
 socket.bind("tcp://*:5556")
 socket.setsockopt(zmq.RCVTIMEO, 0)
 
-SENSOR_POLL_INTERVAL = 1.0
-last_sensor_poll = monotonic()
+VERBOSE_PRINT_INTERVAL = 1.0
+last_verbose_print = monotonic()
+last_tick = monotonic()
 
 try:
     while True:
-        # handle incoming motor commands (non-blocking)
+        command = None
         try:
             command = socket.recv_string()
-            motor_module.update(command)
         except zmq.Again:
             pass
 
-        # poll sensors once per second
         now = monotonic()
-        if now - last_sensor_poll >= SENSOR_POLL_INTERVAL:
-            last_sensor_poll = now
-            readings = sensor_module.read_all()
-            if args.verbose:
-                    print(f"[sensors] ToF: {readings['tof']}")
-                    print(f"[sensors] IMU: {readings['imu']}")
+        dt = now - last_tick
+        last_tick = now
+
+        readings = sensor_module.read_all()
+        motor_module.tick(command, readings, dt)
+
+        if args.verbose and now - last_verbose_print >= VERBOSE_PRINT_INTERVAL:
+            last_verbose_print = now
+            print(f"[sensors] ToF: {readings['tof']}")
+            print(f"[sensors] IMU: {readings['imu']}")
 
         sleep(0.01)
 except KeyboardInterrupt:
