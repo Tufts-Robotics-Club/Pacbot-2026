@@ -8,4 +8,5 @@ pyserial==3.5
 Adafruit-Blinka
 adafruit-circuitpython-vl53l4cd
 adafruit-circuitpython-tca9548a
-adafruit-circuitpython-bno08x
+adafruit-circuitpython-bno055
+RPi.GPIO

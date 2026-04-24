@@ -111,29 +111,24 @@ class ToFPhysical:
 
 
 class IMUPhysical:
-    """BNO08X IMU over I2C. Returns {'ax', 'ay', 'omega'} matching sim schema."""
+    """BNO055 IMU over I2C. Returns {'ax', 'ay', 'omega'} matching sim schema."""
 
     def __init__(self):
         import time
-        from adafruit_bno08x import (
-            BNO_REPORT_LINEAR_ACCELERATION,
-            BNO_REPORT_GYROSCOPE,
-        )
-        from adafruit_bno08x.i2c import BNO08X_I2C
-        self.bno = BNO08X_I2C(_get_i2c())
+        from adafruit_bno055 import BNO055_I2C
+        self.bno = BNO055_I2C(_get_i2c())
         time.sleep(1)
-        self.bno.enable_feature(BNO_REPORT_LINEAR_ACCELERATION)
-        self.bno.enable_feature(BNO_REPORT_GYROSCOPE)
 
     def read(self):
-        try:
-            ax, ay, _ = self.bno.linear_acceleration
-            _, _, omega = self.bno.gyro
-            return {"ax": ax, "ay": ay, "omega": omega}
-        except RuntimeError as e:
-            if "Unprocessable Batch bytes" in str(e):
-                return None
-            raise
+        accel = self.bno.linear_acceleration
+        gyro = self.bno.gyro
+        if accel is None or gyro is None:
+            return None
+        ax, ay, _ = accel
+        _, _, omega = gyro
+        if ax is None or ay is None or omega is None:
+            return None
+        return {"ax": ax, "ay": ay, "omega": omega}
 
     def close(self):
         pass
